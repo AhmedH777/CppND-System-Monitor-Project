@@ -2,11 +2,13 @@
 #define PROCESS_H
 
 #include <string>
+
 /*
 Basic class for Process representation
 It contains relevant attributes as shown below
 */
-class Process {
+class Process
+{
  public:
   Process(int pid);
   int Pid() const;                               // See src/process.cpp

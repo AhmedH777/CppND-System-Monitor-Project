@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <string>
 #include <vector>
+#include <iostream>
 
 #include "linux_parser.h"
 
@@ -9,6 +10,31 @@ using std::stof;
 using std::string;
 using std::to_string;
 using std::vector;
+
+string LinuxParser::ReturnKeyVal(string filePath , string queryKey)
+{
+	string line,key,val;
+
+	std::ifstream stream(filePath);
+
+	if (stream.is_open())
+	{
+		while (std::getline(stream, line))
+		{
+		  std::istringstream linestream(line);
+
+		  while (linestream >> key >> val)
+		  {
+			if (key == queryKey)
+			{
+			  return val;
+			}
+		  }
+		}
+	}
+
+	return "0";
+}
 
 // DONE: An example of how to read data from the filesystem
 string LinuxParser::OperatingSystem() {
@@ -67,30 +93,15 @@ vector<int> LinuxParser::Pids() {
 }
 
 // Read and return the system memory utilization
+/*https://stackoverflow.com/questions/41224738/how-to-calculate-system-memory-usage-from-proc-meminfo-like-htop/41251290#41251290*/
 float LinuxParser::MemoryUtilization()
 {
-	  string val,line,key,totalMem,freeMem;
 
-	  std::ifstream stream(kProcDirectory + kMeminfoFilename);
+	  string totalMem,freeMem;
 
-	  if (stream.is_open())
-	  {
-	    while (std::getline(stream, line))
-	    {
-	      std::istringstream linestream(line);
-	      while (linestream >> key >> val)
-	      {
-	        if (key == "MemTotal:")
-	        {
-	          totalMem = val;
-	        }
-	        if (key == "MemFree:")
-	        {
-	          freeMem = val;
-	        }
-	      }
-	    }
-	  }
+	  string filePath = kProcDirectory + kMeminfoFilename;
+	  totalMem = ReturnKeyVal(filePath , "MemTotal:");
+	  freeMem  = ReturnKeyVal(filePath , "MemFree:" );
 
 	  return (stof(totalMem)-stof(freeMem)) / stof(totalMem);
 }
@@ -109,21 +120,19 @@ long LinuxParser::UpTime()
 		linestream >> uptime;
 	}
 
-	return stol(uptime);
+	return stol(uptime) * sysconf(_SC_CLK_TCK);
 }
 
 // Read and return the number of jiffies for the system
 long LinuxParser::Jiffies()
 {
-	vector<CPUStates> allStats = {kUser_, kNice_, kSystem_, kIdle_, kIOwait_, kIRQ_, kSoftIRQ_, kSteal_};
-	vector<string> vals = LinuxParser::CpuUtilization();
-	vector<long> valslong(10, 0);
+	vector<string> vals = CpuUtilization();
 	long total = 0;
 
-	for (int i : allStats)
+	for (int i = CPUStates::kUser_; i < CPUStates::kGuest_; i++)
 	{
-		valslong[i] = stol(vals[i]);
-		total += valslong[i];
+		total += stol(vals[i]);
+		//std::cout<<vals[i]<<std::endl;
 	}
 
 	return total;
@@ -148,7 +157,8 @@ long LinuxParser::ActiveJiffies(int pid)
 		}
 	}
 
-	return stol(vals[13] + vals[14]);
+	/* utime + stime + cuTime + csTime*/
+	return (stol(vals[13]) + stol(vals[14]) + stol(vals[15]) + stol(vals[16]));
 }
 
 // Read and return the number of active jiffies for the system
@@ -193,55 +203,22 @@ vector<string> LinuxParser::CpuUtilization()
 // Read and return the total number of processes
 int LinuxParser::TotalProcesses()
 {
-	string line,key,val;
+	string filePath = (kProcDirectory + kStatFilename);
 
-	std::ifstream stream(kProcDirectory + kStatFilename);
-
-	if (stream.is_open())
-	{
-		while (std::getline(stream, line))
-		{
-		  std::istringstream linestream(line);
-
-		  while (linestream >> key >> val)
-		  {
-			if (key == "processes")
-			{
-			  return stoi(val);
-			}
-		  }
-		}
-	}
-	return 0;
+	return stoi(ReturnKeyVal(filePath , "processes"));
 }
 
 // Read and return the number of running processes
 int LinuxParser::RunningProcesses()
 {
-	string line,key,val;
+	string filePath = (kProcDirectory + kStatFilename);
 
-	std::ifstream stream(kProcDirectory + kStatFilename);
-
-	if (stream.is_open())
-	{
-		while (std::getline(stream, line))
-		{
-		  std::istringstream linestream(line);
-
-		  while (linestream >> key >> val)
-		  {
-			if (key == "procs_running")
-			{
-			  return stoi(val);
-			}
-		  }
-		}
-	}
-
-	return 0;
+	return stoi(ReturnKeyVal(filePath , "procs_running"));
 }
 
 // Read and return the command associated with a process
+/*https://classroom.udacity.com/nanodegrees/nd213/parts/cd0424/modules/8a2c831e-371a-42ba-b081-5719719f0d46/lessons/80d13f3a-97d0-48d0-a662-d4e28150257f/concepts/2fb8269b-af0b-42a0-940c-340599b1d239*/
+/*Linux stores the command used to launch the function in the /proc/[pid]/cmdline file.*/
 string LinuxParser::Command(int pid)
 {
 	string cmd;
@@ -257,57 +234,21 @@ string LinuxParser::Command(int pid)
 }
 
 // Read and return the memory used by a process
-string LinuxParser::Ram(int pid[[maybe_unused]])
+string LinuxParser::Ram(int pid)
 {
-	string line,key,val;
 
-	std::ifstream stream(kProcDirectory + to_string(pid) + kStatusFilename);
+	string filePath = (kProcDirectory + to_string(pid) + kStatusFilename);
 
-	if (stream.is_open())
-	{
-		while (std::getline(stream, line))
-		{
-		  std::istringstream linestream(line);
+	return to_string(stol(ReturnKeyVal(filePath , "VmSize:")) / 1024);
 
-		  while (linestream >> key)
-		  {
-			if (key == "VmSize:")
-			{
-			  linestream >> val;
-
-			  return to_string(stol(val) / 1024);
-			}
-		  }
-		}
-	}
-
-	return "0";
 }
 
 // Read and return the user ID associated with a process
 string LinuxParser::Uid(int pid)
 {
-	string line,key,val;
+	string filePath = (kProcDirectory + to_string(pid) + kStatusFilename);
 
-	std::ifstream stream(kProcDirectory + to_string(pid) + kStatusFilename);
-
-	if (stream.is_open())
-	{
-		while (std::getline(stream, line))
-		{
-		  std::istringstream linestream(line);
-
-		  while (linestream >> key >> val)
-		  {
-			if (key == "Uid:")
-			{
-			  return val;
-			}
-		  }
-		}
-	}
-
-	return "0";
+	return ReturnKeyVal(filePath , "Uid:");
 }
 
 // Read and return the user associated with a process
@@ -326,7 +267,7 @@ string LinuxParser::User(int pid)
 
 		  while (linestream >> name >> a >> uid)
 		  {
-			if (uid == LinuxParser::Uid(pid))
+			if (uid == Uid(pid))
 			{
 			  return name;
 			}
@@ -356,5 +297,13 @@ long LinuxParser::UpTime(int pid)
 		}
 
 	}
-	return LinuxParser::UpTime() - (stol(vals[21]) / 100);
+	/*
+	 https://stackoverflow.com/questions/16726779/how-do-i-get-the-total-cpu-usage-of-an-application-from-proc-pid-stat/16736599#16736599
+
+	 Next we get the total elapsed time in seconds since the process started:
+
+	 seconds = uptime - (starttime / Hertz)
+
+	 */
+	return ( LinuxParser::UpTime() - ( std::stol(vals[21])/sysconf(_SC_CLK_TCK) ) );
 }
