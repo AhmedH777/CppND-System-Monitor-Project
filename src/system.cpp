@@ -25,13 +25,13 @@ vector<Process>& System::Processes()
 
 	processes_.clear();
 
-	for (int pid : pids)
+    for (unsigned i = 0; i < pids.size(); i++)
 	{
-		Process process(pid);
+		Process process(pids[i]);
 		processes_.push_back(process);
 	}
 
-	std::sort(processes_.rbegin(),processes_.rend());
+	std::sort(processes_.rbegin(),processes_.rend(),std::less<Process>());
 
 	return processes_;
 }
