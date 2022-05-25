@@ -120,7 +120,7 @@ long LinuxParser::UpTime()
 		linestream >> uptime;
 	}
 
-	return stol(uptime) * sysconf(_SC_CLK_TCK);
+	return stol(uptime);
 }
 
 // Read and return the number of jiffies for the system

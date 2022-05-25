@@ -9,6 +9,7 @@ class Processor {
  private:
   double prevIdle_ = 0;
   double prevTotal_ = 0;
+  //double prevActive_ = 0;
 };
 
 #endif

@@ -44,7 +44,7 @@ float Process::CpuUtilization() const
 	float totalTime = float(LinuxParser::ActiveJiffies(pid_));
 	float seconds   = float(LinuxParser::UpTime(pid_));
 
-	float cpu_usage = 100 * ((totalTime / sysconf(_SC_CLK_TCK)) / seconds);
+	float cpu_usage = ((totalTime / sysconf(_SC_CLK_TCK)) / seconds);
 
 	return float(cpu_usage);
 }

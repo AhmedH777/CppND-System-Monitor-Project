@@ -25,20 +25,25 @@ float Processor::Utilization()
 	CPU_Percentage = (totald - idled)/totald
 	*/
 
-	long total = LinuxParser::Jiffies();
-	long idle  = LinuxParser::IdleJiffies();
+	double idle   = LinuxParser::IdleJiffies();
+	//double active = LinuxParser::ActiveJiffies();
+	double total  = LinuxParser::Jiffies();
 
-	long totalDiff = total - this->prevTotal_;
-	long idleDiff  = idle  - this->prevIdle_;
+	double totalDiff  = abs(total  - this->prevTotal_);
+	double idleDiff   = abs(idle   - this->prevIdle_);
+	//double activeDiff = abs(active - this->prevActive_);
 
-	long cpuPercent = ( totalDiff - idleDiff )/ totalDiff;
+	double cpuPercent = abs( totalDiff - idleDiff )/ totalDiff;
 /*
 	std::cout<<"Total : "<<total<<" Idle : "<<idle<<std::endl;
 	std::cout<<"PTotal : "<<this->prevTotal_<<" PIdle : "<<this->prevIdle_<<std::endl;
 	std::cout<<"DTotal : "<<totalDiff<<" DIdle : "<<idleDiff<<std::endl;
+	std::cout<<"Diff   : "<<abs( totalDiff - idleDiff )<<std::endl;
+	std::cout<<"Perc   : "<<cpuPercent<<std::endl;
 */
-	this->prevTotal_ = total;
-	this->prevIdle_  = idle;
+	this->prevTotal_  = total;
+	this->prevIdle_   = idle;
+	//this->prevActive_ = active;
 
 	return cpuPercent;
 }
